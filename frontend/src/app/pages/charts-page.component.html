@@ -1,31 +1,18 @@
 <section class="page-head">
   <h2>Графики</h2>
-  <p>Постройте графики по нескольким датчикам на одном полигоне или сравните один датчик между полигонами.</p>
+  <p>Постройте графики по датчикам на одном полигоне или сравните полигоны по одному датчику.</p>
 </section>
 
 <section class="panel mode-switcher">
-  <button
-    type="button"
-    [class.secondary]="mode !== 'multiSensor'"
-    (click)="setMode('multiSensor')"
-  >
+  <button type="button" [class.secondary]="mode !== 'multiSensor'" (click)="setMode('multiSensor')">
     Несколько датчиков на одном полигоне
   </button>
-  <button
-    type="button"
-    [class.secondary]="mode !== 'multiPolygon'"
-    (click)="setMode('multiPolygon')"
-  >
+  <button type="button" [class.secondary]="mode !== 'multiPolygon'" (click)="setMode('multiPolygon')">
     Один датчик на нескольких полигонах
   </button>
 </section>
 
-<form
-  class="panel filter-grid"
-  [formGroup]="multiSensorForm"
-  *ngIf="mode === 'multiSensor'"
-  (ngSubmit)="buildMultiSensorChart()"
->
+<form class="panel filter-grid" [formGroup]="multiSensorForm" *ngIf="mode === 'multiSensor'" (ngSubmit)="buildMultiSensorChart()">
   <label class="field">
     <span>Полигон</span>
     <select formControlName="polygon_id">
@@ -46,10 +33,10 @@
   <label class="field">
     <span>Период</span>
     <select formControlName="period">
+      <option value="custom">Произвольный период</option>
       <option value="last_24h">Последние 24 часа</option>
       <option value="last_7d">Последние 7 дней</option>
       <option value="last_month">Последний месяц</option>
-      <option value="custom">Произвольный период</option>
     </select>
   </label>
 
@@ -66,23 +53,19 @@
   <label class="field">
     <span>Агрегация</span>
     <select formControlName="aggregation">
-      <option value="raw">Raw</option>
-      <option value="hourly">Hourly (среднее)</option>
-      <option value="daily">Daily (среднее)</option>
+      <option value="raw">raw</option>
+      <option value="hourly">hourly</option>
+      <option value="daily">daily</option>
     </select>
   </label>
 
   <div class="actions">
+    <button type="button" class="secondary" (click)="useSamplePeriod('multiSensor')">Период sample-данных</button>
     <button type="submit">Построить график</button>
   </div>
 </form>
 
-<form
-  class="panel filter-grid"
-  [formGroup]="multiPolygonForm"
-  *ngIf="mode === 'multiPolygon'"
-  (ngSubmit)="buildMultiPolygonChart()"
->
+<form class="panel filter-grid" [formGroup]="multiPolygonForm" *ngIf="mode === 'multiPolygon'" (ngSubmit)="buildMultiPolygonChart()">
   <label class="field">
     <span>Датчик</span>
     <select formControlName="sensor_type_id">
@@ -103,10 +86,10 @@
   <label class="field">
     <span>Период</span>
     <select formControlName="period">
+      <option value="custom">Произвольный период</option>
       <option value="last_24h">Последние 24 часа</option>
       <option value="last_7d">Последние 7 дней</option>
       <option value="last_month">Последний месяц</option>
-      <option value="custom">Произвольный период</option>
     </select>
   </label>
 
@@ -123,20 +106,21 @@
   <label class="field">
     <span>Агрегация</span>
     <select formControlName="aggregation">
-      <option value="raw">Raw</option>
-      <option value="hourly">Hourly (среднее)</option>
-      <option value="daily">Daily (среднее)</option>
+      <option value="raw">raw</option>
+      <option value="hourly">hourly</option>
+      <option value="daily">daily</option>
     </select>
   </label>
 
   <div class="actions">
+    <button type="button" class="secondary" (click)="useSamplePeriod('multiPolygon')">Период sample-данных</button>
     <button type="submit">Построить график</button>
   </div>
 </form>
 
 <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
+<p class="info-text" *ngIf="isLoading">Построение графика...</p>
 
 <section class="panel chart-panel">
   <div #chartHost class="chart-host"></div>
 </section>
-

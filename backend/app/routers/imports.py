@@ -26,6 +26,10 @@ async def import_csv(
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Поддерживаются только CSV-файлы.")
 
+    collector_last_name = collector_last_name.strip()
+    if not collector_last_name:
+        raise HTTPException(status_code=400, detail="Фамилия загрузившего обязательна.")
+
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Пустой файл.")
@@ -96,4 +100,3 @@ def list_imports(
         )
         for item in imports
     ]
-

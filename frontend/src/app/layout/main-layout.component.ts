@@ -15,6 +15,6 @@ export class MainLayoutComponent {
     { label: 'Загрузка CSV', path: '/upload' },
     { label: 'Измерения', path: '/measurements' },
     { label: 'Графики', path: '/charts' },
+    { label: 'Справочники', path: '/references' },
   ];
 }
-

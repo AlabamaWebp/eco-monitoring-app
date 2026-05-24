@@ -56,10 +56,10 @@ def _decode_csv_bytes(content: bytes) -> str:
     raise ValueError("Не удалось определить кодировку CSV. Используйте UTF-8 или CP1251.")
 
 
-def _parse_measured_at(raw_value: str) -> datetime:
+def _parse_measured_at(raw_value: str, row_number: int) -> datetime:
     value = raw_value.strip()
     if not value:
-        raise ValueError("Пустое значение даты.")
+        raise ValueError(f"Пустое значение даты в строке {row_number}.")
 
     formats = (
         "%Y-%m-%d %H:%M:%S",
@@ -76,7 +76,7 @@ def _parse_measured_at(raw_value: str) -> datetime:
     try:
         return datetime.fromisoformat(value)
     except ValueError as exc:
-        raise ValueError(f"Неверный формат даты: {raw_value}") from exc
+        raise ValueError(f"Некорректный формат даты в строке {row_number}: {raw_value}") from exc
 
 
 def _get_or_create_collector(
@@ -89,9 +89,7 @@ def _get_or_create_collector(
     if not normalized:
         raise ValueError("Фамилия загрузившего обязательна.")
 
-    existing = db.scalar(
-        select(DataCollector).where(func.lower(DataCollector.last_name) == normalized.casefold())
-    )
+    existing = db.scalar(select(DataCollector).where(func.lower(DataCollector.last_name) == normalized.lower()))
     if existing:
         return existing
 
@@ -104,6 +102,16 @@ def _get_or_create_collector(
     db.commit()
     db.refresh(collector)
     return collector
+
+
+def _parse_numeric(raw_value: str) -> Decimal | None:
+    normalized = raw_value.strip().replace(",", ".")
+    if not normalized:
+        return None
+    try:
+        return Decimal(normalized)
+    except InvalidOperation:
+        return None
 
 
 def import_measurements_from_csv(
@@ -152,11 +160,7 @@ def import_measurements_from_csv(
             for original in reader.fieldnames
             if original is not None
         }
-
-        date_column = next(
-            (original for original, normalized in header_map.items() if normalized in DATE_COLUMN_ALIASES),
-            None,
-        )
+        date_column = next((col for col, alias in header_map.items() if alias in DATE_COLUMN_ALIASES), None)
         if date_column is None:
             raise ValueError("Обязательная колонка 'Дата' не найдена.")
 
@@ -164,9 +168,7 @@ def import_measurements_from_csv(
         if not sensor_columns:
             raise ValueError("CSV не содержит колонок датчиков.")
 
-        sensor_types = {
-            sensor.code: sensor for sensor in db.scalars(select(SensorType)).all()
-        }
+        sensor_types = {sensor.code: sensor for sensor in db.scalars(select(SensorType)).all()}
 
         resolved_columns: dict[str, SensorType] = {}
         unknown_columns: list[str] = []
@@ -180,24 +182,21 @@ def import_measurements_from_csv(
                 resolved_columns[column] = sensor_type
 
         if unknown_columns:
-            unknown = ", ".join(unknown_columns)
-            raise ValueError(f"Неизвестные колонки датчиков: {unknown}")
+            raise ValueError(f"Неизвестные колонки датчиков: {', '.join(unknown_columns)}")
 
         measurement_rows: list[Measurement] = []
-        for raw_row in reader:
+        for idx, raw_row in enumerate(reader, start=2):
             rows_count += 1
-            measured_at_raw = raw_row.get(date_column, "")
-            measured_at = _parse_measured_at(str(measured_at_raw))
+            measured_at = _parse_measured_at(str(raw_row.get(date_column, "")), idx)
 
             for column, sensor_type in resolved_columns.items():
-                raw_value = raw_row.get(column, "")
+                raw_value = raw_row.get(column)
                 if raw_value is None or str(raw_value).strip() == "":
                     skipped_values += 1
                     continue
 
-                try:
-                    value = Decimal(str(raw_value).strip())
-                except InvalidOperation:
+                value = _parse_numeric(str(raw_value))
+                if value is None:
                     skipped_values += 1
                     continue
 
@@ -223,12 +222,12 @@ def import_measurements_from_csv(
         db.commit()
     except Exception as exc:
         db.rollback()
-        import_file = db.get(ImportFile, import_file.import_file_id)
-        if import_file is not None:
-            import_file.rows_count = rows_count
-            import_file.measurements_count = measurements_count
-            import_file.status = "failed"
-            import_file.error_message = str(exc)[:2000]
+        current_import_file = db.get(ImportFile, import_file.import_file_id)
+        if current_import_file is not None:
+            current_import_file.rows_count = rows_count
+            current_import_file.measurements_count = measurements_count
+            current_import_file.status = "failed"
+            current_import_file.error_message = str(exc)[:2000]
             db.commit()
         raise
 
@@ -240,4 +239,3 @@ def import_measurements_from_csv(
         measurements_count=measurements_count,
         skipped_values=skipped_values,
     )
-

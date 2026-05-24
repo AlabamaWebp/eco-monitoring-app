@@ -27,6 +27,8 @@ def list_measurements(
     normalized_sort = sort_order.lower()
     if normalized_sort not in {"asc", "desc"}:
         raise HTTPException(status_code=400, detail="sort_order должен быть 'asc' или 'desc'.")
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(status_code=400, detail="date_from не может быть больше date_to.")
 
     import_alias = aliased(ImportFile)
     collector_alias = aliased(DataCollector)
@@ -68,20 +70,18 @@ def list_measurements(
         .outerjoin(import_alias, import_alias.import_file_id == Measurement.import_file_id)
         .outerjoin(collector_alias, collector_alias.collector_id == import_alias.collector_id)
     )
-
     if filters:
         base_stmt = base_stmt.where(and_(*filters))
 
-    count_stmt = (
-        select(func.count(Measurement.measurement_id))
-        .outerjoin(import_alias, import_alias.import_file_id == Measurement.import_file_id)
+    count_stmt = select(func.count(Measurement.measurement_id)).outerjoin(
+        import_alias, import_alias.import_file_id == Measurement.import_file_id
     )
     if filters:
         count_stmt = count_stmt.where(and_(*filters))
 
     total = db.scalar(count_stmt) or 0
-
     rows = db.execute(base_stmt.order_by(order_expression).limit(limit).offset(offset)).mappings().all()
+
     items = [
         MeasurementListItem(
             measurement_id=row["measurement_id"],

@@ -22,6 +22,7 @@ export class ChartsPageComponent implements AfterViewInit, OnDestroy {
   sensors: SensorType[] = [];
   mode: ChartMode = 'multiSensor';
   errorMessage = '';
+  isLoading = false;
 
   private echarts: any;
   private chartInstance: any;
@@ -36,18 +37,18 @@ export class ChartsPageComponent implements AfterViewInit, OnDestroy {
     this.multiSensorForm = this.fb.group({
       polygon_id: ['', Validators.required],
       sensor_type_ids: [<string[]>[], Validators.required],
-      period: ['last_7d' as PeriodMode, Validators.required],
-      date_from: [''],
-      date_to: [''],
+      period: ['custom' as PeriodMode, Validators.required],
+      date_from: ['2025-01-01T00:00'],
+      date_to: ['2025-02-15T00:00'],
       aggregation: ['raw' as AggregationMode, Validators.required],
     });
 
     this.multiPolygonForm = this.fb.group({
       sensor_type_id: ['', Validators.required],
       polygon_ids: [<string[]>[], Validators.required],
-      period: ['last_7d' as PeriodMode, Validators.required],
-      date_from: [''],
-      date_to: [''],
+      period: ['custom' as PeriodMode, Validators.required],
+      date_from: ['2025-01-01T00:00'],
+      date_to: ['2025-02-15T00:00'],
       aggregation: ['raw' as AggregationMode, Validators.required],
     });
 
@@ -58,7 +59,7 @@ export class ChartsPageComponent implements AfterViewInit, OnDestroy {
     const module = await import('echarts');
     this.echarts = module;
     this.chartInstance = this.echarts.init(this.chartHost.nativeElement);
-    this.renderEmptyState();
+    this.renderEmptyState('Выберите параметры и нажмите "Построить график".');
   }
 
   ngOnDestroy(): void {
@@ -70,17 +71,30 @@ export class ChartsPageComponent implements AfterViewInit, OnDestroy {
   setMode(mode: ChartMode): void {
     this.mode = mode;
     this.errorMessage = '';
-    this.renderEmptyState();
+    this.renderEmptyState('Выберите параметры и нажмите "Построить график".');
+  }
+
+  useSamplePeriod(form: 'multiSensor' | 'multiPolygon'): void {
+    const target = form === 'multiSensor' ? this.multiSensorForm : this.multiPolygonForm;
+    target.patchValue({
+      period: 'custom',
+      date_from: '2025-01-01T00:00',
+      date_to: '2025-02-15T00:00',
+    });
   }
 
   buildMultiSensorChart(): void {
     const value = this.multiSensorForm.getRawValue();
     const sensorIds = value.sensor_type_ids ?? [];
     const period = value.period ?? undefined;
+
     if (!value.polygon_id || sensorIds.length === 0) {
       this.multiSensorForm.markAllAsTouched();
       return;
     }
+
+    this.errorMessage = '';
+    this.isLoading = true;
 
     this.api
       .getMultiSensorChart({
@@ -92,9 +106,14 @@ export class ChartsPageComponent implements AfterViewInit, OnDestroy {
         aggregation: value.aggregation ?? 'raw',
       })
       .subscribe({
-        next: (response) => this.renderChart(response),
+        next: (response) => {
+          this.isLoading = false;
+          this.renderChart(response);
+        },
         error: (error) => {
+          this.isLoading = false;
           this.errorMessage = error?.error?.detail ?? 'Не удалось построить график.';
+          this.renderEmptyState('Не удалось построить график.');
         },
       });
   }
@@ -103,10 +122,14 @@ export class ChartsPageComponent implements AfterViewInit, OnDestroy {
     const value = this.multiPolygonForm.getRawValue();
     const polygonIds = value.polygon_ids ?? [];
     const period = value.period ?? undefined;
+
     if (!value.sensor_type_id || polygonIds.length === 0) {
       this.multiPolygonForm.markAllAsTouched();
       return;
     }
+
+    this.errorMessage = '';
+    this.isLoading = true;
 
     this.api
       .getMultiPolygonChart({
@@ -118,9 +141,14 @@ export class ChartsPageComponent implements AfterViewInit, OnDestroy {
         aggregation: value.aggregation ?? 'raw',
       })
       .subscribe({
-        next: (response) => this.renderChart(response),
+        next: (response) => {
+          this.isLoading = false;
+          this.renderChart(response);
+        },
         error: (error) => {
+          this.isLoading = false;
           this.errorMessage = error?.error?.detail ?? 'Не удалось построить график.';
+          this.renderEmptyState('Не удалось построить график.');
         },
       });
   }
@@ -135,18 +163,25 @@ export class ChartsPageComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    const hasPoints = response.series.some((series) => series.data.length > 0);
+    if (!hasPoints) {
+      this.renderEmptyState('За выбранный период нет данных.');
+      return;
+    }
+
     const option = {
       tooltip: {
         trigger: 'axis',
       },
       legend: {
         type: 'scroll',
+        top: 8,
       },
       grid: {
-        left: 50,
+        left: 48,
         right: 20,
-        top: 45,
-        bottom: 70,
+        top: 56,
+        bottom: 72,
       },
       xAxis: {
         type: 'time',
@@ -158,7 +193,7 @@ export class ChartsPageComponent implements AfterViewInit, OnDestroy {
       },
       dataZoom: [
         { type: 'inside' },
-        { type: 'slider', height: 24, bottom: 20 },
+        { type: 'slider', height: 24, bottom: 18 },
       ],
       series: response.series.map((series) => ({
         name: `${series.name} (${series.unit})`,
@@ -168,17 +203,18 @@ export class ChartsPageComponent implements AfterViewInit, OnDestroy {
         data: series.data.map(([timestamp, value]) => [timestamp, value]),
       })),
     };
+
     this.chartInstance.setOption(option, true);
   }
 
-  private renderEmptyState(): void {
+  private renderEmptyState(message: string): void {
     if (!this.chartInstance) {
       return;
     }
     this.chartInstance.setOption(
       {
         title: {
-          text: 'Выберите параметры и нажмите "Построить график"',
+          text: message,
           left: 'center',
           top: 'center',
           textStyle: { color: '#64748b', fontSize: 14, fontWeight: 'normal' },

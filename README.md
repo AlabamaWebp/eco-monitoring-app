@@ -1,82 +1,48 @@
 # Eco Monitoring App
 
-Веб-приложение для хранения и анализа экологических измерений.
-Главная таблица данных: `measurements`.
-Таблица `import_files` используется только для истории загрузок CSV.
+Веб-приложение для хранения и анализа экологических измерений с полигонов.
 
-## Текущий функционал
+Ключевая идея проекта: CSV импортируется в **нормализованный длинный формат**, где каждая ячейка датчика становится отдельной строкой в таблице `measurements`.
 
-- Docker Compose: MySQL 8 + FastAPI backend
-- Backend API:
-  - загрузка CSV в `measurements`
-  - история импортов
-  - просмотр измерений с фильтрами и пагинацией
-  - графики: multi-sensor и multi-polygon
-  - чтение справочников
-  - dashboard summary
-- Frontend Angular:
-  - Dashboard
-  - реальная страница загрузки CSV
-  - таблица измерений с фильтрами
-  - графики на Apache ECharts
-- Генератор тестовых CSV-файлов
-- Backend тесты на `pytest`
+## Технологии
 
-## Структура
+- Backend: Python, FastAPI, SQLAlchemy, Alembic
+- Database: MySQL 8 (Docker Compose)
+- Frontend: Angular, TypeScript, SCSS
+- Графики: Apache ECharts
 
-```text
-eco-monitoring-app/
-├── backend/
-├── frontend/
-├── docs/
-├── sample_data/
-├── docker-compose.yml
-├── .env.example
-├── README.md
-└── PROJECT_REQUIREMENTS.md
-```
+## Быстрый демонстрационный запуск
 
-## Подготовка окружения
+### Вариант 1: вручную
 
 ```bash
 cp .env.example .env
-```
-
-Для PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-## Запуск backend + MySQL
-
-```bash
 docker compose up -d --build
 docker compose exec backend alembic upgrade head
 docker compose exec backend python -m app.seed_data
+docker run --rm -v <project_path>:/workspace -w /workspace python:3.12-slim python sample_data/generate_sample_csv.py
 ```
 
-Проверка:
+Пример для PowerShell:
 
-- API: [http://localhost:8000](http://localhost:8000)
-- Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
-- Health: [http://localhost:8000/api/health](http://localhost:8000/api/health)
+```powershell
+Copy-Item .env.example .env
+docker compose up -d --build
+docker compose exec backend alembic upgrade head
+docker compose exec backend python -m app.seed_data
+docker run --rm -v "${PWD}:/workspace" -w /workspace python:3.12-slim python sample_data/generate_sample_csv.py
+```
 
-## Генерация тестовых CSV
-
-Скрипт создаёт по ~1000 строк для каждого полигона:
-
-- `sample_data/polygon_1_measurements.csv`
-- `sample_data/polygon_2_measurements.csv`
-- `sample_data/polygon_3_measurements.csv`
-
-Запуск:
+Импорт sample CSV:
 
 ```bash
-python sample_data/generate_sample_csv.py
+curl -X POST "http://localhost:8000/api/imports/csv" \
+  -F "file=@sample_data/polygon_1_measurements.csv" \
+  -F "polygon_id=1" \
+  -F "collector_last_name=Petrov"
 ```
 
-## Запуск frontend
+Запуск frontend:
 
 ```bash
 cd frontend
@@ -84,31 +50,39 @@ npm install
 npm start
 ```
 
-Frontend: [http://localhost:4200](http://localhost:4200)
+Открыть:
+- Backend Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Frontend: [http://localhost:4200](http://localhost:4200)
 
-## Основные API endpoints
+### Вариант 2: через demo-скрипты
 
-### Справочники
+- Windows: `./scripts/demo_setup.ps1`
+- Linux/macOS: `bash ./scripts/demo_setup.sh`
 
-- `GET /api/polygons`
-- `GET /api/sensor-types`
-- `GET /api/measurement-units`
+## Структура проекта
 
-### Импорт CSV
+```text
+eco-monitoring-app/
+├── backend/
+├── frontend/
+├── docs/
+├── sample_data/
+├── scripts/
+├── docker-compose.yml
+├── .env.example
+├── README.md
+└── PROJECT_REQUIREMENTS.md
+```
 
-- `POST /api/imports/csv`
-- `GET /api/imports`
+## Как устроен CSV-импорт
 
-Поля формы `POST /api/imports/csv`:
-
-- `file` (CSV)
-- `polygon_id`
-- `collector_last_name` (обязательно)
-- `collector_first_name` (опционально)
-- `collector_middle_name` (опционально)
+1. Пользователь выбирает полигон и указывает фамилию.
+2. Загружает CSV с колонкой `Дата` и колонками датчиков.
+3. Backend создаёт запись в `import_files`.
+4. Каждая непустая корректная ячейка датчика записывается в `measurements`.
+5. Пустые или некорректные числовые значения пропускаются и считаются в `skipped_values`.
 
 Поддерживаемые колонки датчиков (RU/EN):
-
 - `CO2` / `co2`
 - `Влажность` / `humidity`
 - `Температура` / `temperature`
@@ -116,73 +90,85 @@ Frontend: [http://localhost:4200](http://localhost:4200)
 - `Освещённость` / `light`
 - `Уровень шума` / `noise`
 
-Важно по валидации импорта:
+## Таблицы БД
 
-- обязательна колонка `Дата`
-- пустые значения пропускаются
-- некорректные числовые значения пропускаются
-- количество пропусков возвращается в `skipped_values`
-- статус импорта:
-  - `processed` при успехе
-  - `failed` при ошибке
+- `polygons`
+- `data_collectors`
+- `measurement_units`
+- `sensor_types`
+- `import_files` (история загрузок)
+- `measurements` (**главная таблица проекта**)
+
+Почему `measurements` главная:
+- все фильтры, таблицы и графики строятся по ней;
+- это факт-таблица временных рядов;
+- `import_files` хранит только аудит импорта.
+
+## Основные страницы frontend
+
+- Dashboard
+- Загрузка CSV
+- Измерения (таблица + фильтры + пагинация)
+- Графики (2 режима)
+- Справочники (read-only)
+
+## API endpoints
+
+### Справочники
+- `GET /api/polygons`
+- `GET /api/sensor-types`
+- `GET /api/measurement-units`
+
+### Импорты
+- `POST /api/imports/csv`
+- `GET /api/imports`
 
 ### Измерения
-
 - `GET /api/measurements`
 
-Фильтры:
-
-- `polygon_id`
-- `sensor_type_id`
-- `date_from`
-- `date_to`
-- `collector_id`
-- `import_file_id`
-- `limit`
-- `offset`
-- `sort_order=asc|desc` (по `measured_at`, по умолчанию `desc`)
-
 ### Графики
-
 - `GET /api/charts/multi-sensor`
 - `GET /api/charts/multi-polygon`
 
-Дополнительно:
-
-- `period=last_24h|last_7d|last_month`
-- `aggregation=raw|hourly|daily`
-
 ### Dashboard
-
 - `GET /api/dashboard/summary`
 
-## Тесты backend
+## Тесты и проверки
+
+Backend tests:
 
 ```bash
 docker compose exec backend pytest -q
 ```
 
-Покрыто:
-
-- health endpoint
-- чтение справочников
-- импорт CSV
-- появление записей в `measurements`
-- обработка пропусков
-- `GET /api/measurements`
-- chart endpoints
-
-## Полезные команды
-
-Остановить контейнеры:
+Frontend build:
 
 ```bash
-docker compose down
+cd frontend
+npx ng build
 ```
 
-Остановить и удалить volume БД:
+Рекомендуемый полный чек:
 
 ```bash
-docker compose down -v
+docker compose config
+docker compose up -d --build
+docker compose exec backend alembic upgrade head
+docker compose exec backend python -m app.seed_data
+docker compose exec backend pytest -q
+cd frontend && npx ng build
 ```
 
+## Типичные проблемы
+
+1. `npm` в PowerShell не запускается из-за policy  
+   Используйте `npm.cmd install` / `npx.cmd ng build`.
+
+2. Пустые графики  
+   Sample CSV начинается с `2025-01-01`. На странице графиков используйте кнопку **"Период sample-данных"**.
+
+3. Ошибка импорта CSV  
+   Проверьте:
+   - наличие колонки `Дата`;
+   - известные названия датчиков;
+   - расширение файла `.csv`.

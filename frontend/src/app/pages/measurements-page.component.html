@@ -1,6 +1,6 @@
 <section class="page-head">
   <h2>Измерения</h2>
-  <p>Таблица измерений из главной таблицы <code>measurements</code> с фильтрами и пагинацией.</p>
+  <p>Таблица данных из главной таблицы <code>measurements</code> с фильтрами и пагинацией.</p>
 </section>
 
 <form class="panel filter-grid" [formGroup]="form" (ngSubmit)="applyFilters()">
@@ -8,9 +8,7 @@
     <span>Полигон</span>
     <select formControlName="polygon_id">
       <option value="">Все полигоны</option>
-      <option *ngFor="let polygon of polygons" [value]="polygon.polygon_id">
-        {{ polygon.name }}
-      </option>
+      <option *ngFor="let polygon of polygons" [value]="polygon.polygon_id">{{ polygon.name }}</option>
     </select>
   </label>
 
@@ -18,9 +16,7 @@
     <span>Датчик</span>
     <select formControlName="sensor_type_id">
       <option value="">Все датчики</option>
-      <option *ngFor="let sensor of sensorTypes" [value]="sensor.sensor_type_id">
-        {{ sensor.name }}
-      </option>
+      <option *ngFor="let sensor of sensorTypes" [value]="sensor.sensor_type_id">{{ sensor.name }}</option>
     </select>
   </label>
 
@@ -52,8 +48,8 @@
     </select>
   </label>
 
-  <div class="actions two-buttons">
-    <button type="submit">Применить</button>
+  <div class="actions">
+    <button type="submit">Применить фильтры</button>
     <button type="button" class="secondary" (click)="resetFilters()">Сбросить</button>
   </div>
 </form>
@@ -61,6 +57,10 @@
 <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
 
 <section class="panel table-panel">
+  <div class="table-meta">
+    <strong>Всего записей: {{ total }}</strong>
+  </div>
+
   <div class="table-wrapper">
     <table>
       <thead>
@@ -69,7 +69,7 @@
           <th>Полигон</th>
           <th>Датчик</th>
           <th>Значение</th>
-          <th>Ед.</th>
+          <th>Единица</th>
           <th>Файл импорта</th>
           <th>Фамилия</th>
         </tr>
@@ -96,15 +96,9 @@
 
   <div class="pagination">
     <button type="button" class="secondary" (click)="prevPage()" [disabled]="offset === 0">Назад</button>
-    <span>Страница {{ pageNumber }} / {{ totalPages }} (всего: {{ total }})</span>
-    <button
-      type="button"
-      class="secondary"
-      (click)="nextPage()"
-      [disabled]="offset + limit >= total"
-    >
+    <span>Страница {{ pageNumber }} / {{ totalPages }}</span>
+    <button type="button" class="secondary" (click)="nextPage()" [disabled]="offset + limit >= total">
       Вперёд
     </button>
   </div>
 </section>
-

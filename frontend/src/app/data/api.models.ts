@@ -50,7 +50,7 @@ export interface MeasurementItem {
   sensor_type_id: number;
   sensor_name: string;
   sensor_code: string;
-  value: number;
+  value: number | string;
   unit_symbol: string;
   import_file_id?: number | null;
   file_name?: string | null;
@@ -92,4 +92,3 @@ export interface DashboardSummary {
   imports_count: number;
   latest_imports: DashboardImportItem[];
 }
-

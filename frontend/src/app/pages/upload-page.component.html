@@ -1,6 +1,6 @@
 <section class="page-head">
   <h2>Загрузка CSV</h2>
-  <p>Загрузите CSV-файл измерений: полигон, фамилия загрузившего и файл с колонками датчиков.</p>
+  <p>Выберите полигон, укажите фамилию загрузившего и импортируйте файл измерений.</p>
 </section>
 
 <form class="panel form-grid" [formGroup]="form" (ngSubmit)="submit()">
@@ -36,18 +36,19 @@
   </label>
 
   <div class="hint-box">
-    <strong>Пример колонок CSV:</strong>
-    <p>Дата, CO2, Влажность, Температура, Давление, Освещённость, Уровень шума</p>
+    <strong>Формат CSV</strong>
+    <p>Обязательная колонка: <code>Дата</code>. Остальные колонки трактуются как датчики.</p>
+    <p>Пример: <code>Дата,CO2,Влажность,Температура,Давление,Освещённость,Уровень шума</code></p>
   </div>
 
   <div class="actions">
     <button type="submit" [disabled]="isSubmitting">
-      {{ isSubmitting ? 'Загрузка...' : 'Загрузить CSV' }}
+      {{ isSubmitting ? 'Идёт загрузка...' : 'Загрузить CSV' }}
     </button>
   </div>
-
-  <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
 </form>
+
+<p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
 
 <section class="panel result-box" *ngIf="uploadResult">
   <h3>Результат импорта</h3>
@@ -59,7 +60,7 @@
     <p><span>Пропущено значений:</span> {{ uploadResult.skipped_values }}</p>
   </div>
   <div class="actions">
-    <button type="button" (click)="goToMeasurements()">Открыть измерения</button>
+    <button type="button" (click)="goToMeasurements()">Перейти к измерениям</button>
+    <button type="button" class="secondary" (click)="goToCharts()">Перейти к графикам</button>
   </div>
 </section>
-

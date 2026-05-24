@@ -37,6 +37,7 @@ export class MeasurementsPageComponent {
       date_to: [''],
       sort_order: ['desc'],
     });
+
     this.bootstrap();
   }
 
@@ -52,6 +53,7 @@ export class MeasurementsPageComponent {
     this.isLoading = true;
     this.errorMessage = '';
     const values = this.form.getRawValue();
+
     this.api
       .getMeasurements({
         polygon_id: values.polygon_id || undefined,

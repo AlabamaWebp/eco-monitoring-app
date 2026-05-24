@@ -1,6 +1,14 @@
 <section class="page-head">
   <h2>Dashboard</h2>
-  <p>Сводка по полигонам, загрузкам CSV и текущему объёму измерений.</p>
+  <p>Главная страница мониторинга: загрузка CSV, просмотр измерений и построение графиков.</p>
+</section>
+
+<section class="panel intro-panel">
+  <h3>Как работает система</h3>
+  <p>
+    Данные загружаются из CSV в нормализованную таблицу <code>measurements</code>. После импорта можно
+    фильтровать измерения, смотреть историю загрузок и строить графики по датчикам и полигонам.
+  </p>
 </section>
 
 <section class="stats-grid">
@@ -10,46 +18,49 @@
   </article>
 </section>
 
-<p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
-
 <section class="panel quick-actions">
   <a routerLink="/upload" class="action-btn">Загрузить CSV</a>
   <a routerLink="/measurements" class="action-btn">Смотреть измерения</a>
   <a routerLink="/charts" class="action-btn">Построить график</a>
+  <a routerLink="/references" class="action-btn secondary-action">Открыть справочники</a>
 </section>
 
-<section class="panel table-panel" *ngIf="summary">
-  <h3>Последние 5 импортов</h3>
+<p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+<section class="panel table-panel">
+  <h3>Последние 5 загрузок</h3>
   <div class="table-wrapper">
     <table>
       <thead>
         <tr>
-          <th>ID</th>
           <th>Файл</th>
           <th>Полигон</th>
           <th>Фамилия</th>
-          <th>Загружен</th>
+          <th>Дата загрузки</th>
           <th>Статус</th>
-          <th>Строк</th>
           <th>Измерений</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngIf="summary.latest_imports.length === 0">
-          <td colspan="8" class="muted-cell">История импортов пока пуста.</td>
+        <tr *ngIf="isLoading">
+          <td colspan="6" class="muted-cell">Загрузка...</td>
         </tr>
-        <tr *ngFor="let item of summary.latest_imports">
-          <td>{{ item.import_file_id }}</td>
+        <tr *ngIf="!isLoading && summary?.latest_imports?.length === 0">
+          <td colspan="6" class="muted-cell">Пока нет импортов. Загрузите первый CSV-файл.</td>
+        </tr>
+        <tr *ngFor="let item of summary?.latest_imports">
           <td>{{ item.file_name }}</td>
           <td>{{ item.polygon_name }}</td>
           <td>{{ item.collector_last_name }}</td>
-          <td>{{ item.uploaded_at | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
-          <td>{{ item.status }}</td>
-          <td>{{ item.rows_count }}</td>
+          <td>{{ item.uploaded_at | date: 'yyyy-MM-dd HH:mm' }}</td>
+          <td>
+            <span class="status-pill" [class.success]="item.status === 'processed'" [class.failed]="item.status === 'failed'">
+              {{ item.status }}
+            </span>
+          </td>
           <td>{{ item.measurements_count }}</td>
         </tr>
       </tbody>
     </table>
   </div>
 </section>
-

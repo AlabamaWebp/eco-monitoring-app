@@ -14,6 +14,7 @@ import { DashboardSummary } from '../data/api.models';
 export class DashboardPageComponent {
   summary: DashboardSummary | null = null;
   errorMessage = '';
+  isLoading = true;
 
   constructor(private readonly api: ApiService) {
     this.loadSummary();
@@ -25,7 +26,7 @@ export class DashboardPageComponent {
         { label: 'Полигонов', value: '—' },
         { label: 'Типов датчиков', value: '—' },
         { label: 'Измерений', value: '—' },
-        { label: 'CSV загрузок', value: '—' },
+        { label: 'CSV-загрузок', value: '—' },
       ];
     }
 
@@ -33,19 +34,22 @@ export class DashboardPageComponent {
       { label: 'Полигонов', value: String(this.summary.polygons_count) },
       { label: 'Типов датчиков', value: String(this.summary.sensor_types_count) },
       { label: 'Измерений', value: String(this.summary.measurements_count) },
-      { label: 'CSV загрузок', value: String(this.summary.imports_count) },
+      { label: 'CSV-загрузок', value: String(this.summary.imports_count) },
     ];
   }
 
   private loadSummary(): void {
+    this.isLoading = true;
+    this.errorMessage = '';
     this.api.getDashboardSummary().subscribe({
       next: (data) => {
         this.summary = data;
+        this.isLoading = false;
       },
       error: () => {
-        this.errorMessage = 'Не удалось загрузить сводку dashboard.';
+        this.errorMessage = 'Не удалось загрузить сводку Dashboard.';
+        this.isLoading = false;
       },
     });
   }
 }
-

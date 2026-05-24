@@ -12,6 +12,7 @@ from app.schemas.charts import ChartResponse, ChartSeries
 router = APIRouter(tags=["charts"])
 
 ALLOWED_AGGREGATIONS = {"raw", "hourly", "daily"}
+ALLOWED_PERIODS = {"last_24h", "last_7d", "last_month"}
 
 
 def _parse_id_list(raw_ids: str, field_name: str) -> list[int]:
@@ -29,6 +30,12 @@ def _resolve_date_range(
     date_to: datetime | None,
     period: str | None,
 ) -> tuple[datetime | None, datetime | None]:
+    if period and period not in ALLOWED_PERIODS:
+        raise HTTPException(status_code=400, detail="period должен быть last_24h, last_7d или last_month.")
+
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(status_code=400, detail="date_from не может быть больше date_to.")
+
     if date_from or date_to:
         return date_from, date_to
 
@@ -70,7 +77,7 @@ def multi_sensor_chart(
     db: Session = Depends(get_db),
 ) -> ChartResponse:
     if aggregation not in ALLOWED_AGGREGATIONS:
-        raise HTTPException(status_code=400, detail="aggregation должен быть raw/hourly/daily.")
+        raise HTTPException(status_code=400, detail="aggregation должен быть raw, hourly или daily.")
 
     sensor_ids = _parse_id_list(sensor_type_ids, "sensor_type_ids")
     resolved_from, resolved_to = _resolve_date_range(date_from, date_to, period)
@@ -82,18 +89,11 @@ def multi_sensor_chart(
         select(
             SensorType.sensor_type_id.label("sensor_type_id"),
             SensorType.name.label("sensor_name"),
-            SensorType.code.label("sensor_code"),
-            SensorType.unit_id.label("unit_id"),
             bucket,
             value_expr.label("value"),
         )
         .join(SensorType, SensorType.sensor_type_id == Measurement.sensor_type_id)
-        .where(
-            and_(
-                Measurement.polygon_id == polygon_id,
-                Measurement.sensor_type_id.in_(sensor_ids),
-            )
-        )
+        .where(and_(Measurement.polygon_id == polygon_id, Measurement.sensor_type_id.in_(sensor_ids)))
     )
     if resolved_from is not None:
         stmt = stmt.where(Measurement.measured_at >= resolved_from)
@@ -101,15 +101,10 @@ def multi_sensor_chart(
         stmt = stmt.where(Measurement.measured_at <= resolved_to)
 
     if aggregation != "raw":
-        stmt = stmt.group_by(
-            SensorType.sensor_type_id,
-            SensorType.name,
-            SensorType.code,
-            SensorType.unit_id,
-            bucket,
-        )
+        stmt = stmt.group_by(SensorType.sensor_type_id, SensorType.name, bucket)
 
-    rows = db.execute(stmt.order_by(bucket.asc())).mappings().all()
+    stmt = stmt.order_by(bucket.asc(), SensorType.sensor_type_id.asc())
+    rows = db.execute(stmt).mappings().all()
 
     sensors = {
         sensor.sensor_type_id: sensor
@@ -117,10 +112,7 @@ def multi_sensor_chart(
     }
     missing_sensor_ids = [sensor_id for sensor_id in sensor_ids if sensor_id not in sensors]
     if missing_sensor_ids:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Не найдены датчики с id: {', '.join(str(v) for v in missing_sensor_ids)}",
-        )
+        raise HTTPException(status_code=404, detail=f"Не найдены датчики с id: {', '.join(str(v) for v in missing_sensor_ids)}")
 
     series_map: dict[int, ChartSeries] = {
         sensor_id: ChartSeries(name=sensors[sensor_id].name, unit=sensors[sensor_id].unit.symbol, data=[])
@@ -130,10 +122,7 @@ def multi_sensor_chart(
     for row in rows:
         sensor_id = int(row["sensor_type_id"])
         bucket_value = row["bucket"]
-        if isinstance(bucket_value, datetime):
-            timestamp = bucket_value.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            timestamp = str(bucket_value)
+        timestamp = bucket_value.strftime("%Y-%m-%d %H:%M:%S") if isinstance(bucket_value, datetime) else str(bucket_value)
         series_map[sensor_id].data.append([timestamp, _to_float(row["value"])])
 
     return ChartResponse(series=list(series_map.values()))
@@ -150,7 +139,7 @@ def multi_polygon_chart(
     db: Session = Depends(get_db),
 ) -> ChartResponse:
     if aggregation not in ALLOWED_AGGREGATIONS:
-        raise HTTPException(status_code=400, detail="aggregation должен быть raw/hourly/daily.")
+        raise HTTPException(status_code=400, detail="aggregation должен быть raw, hourly или daily.")
 
     polygon_id_list = _parse_id_list(polygon_ids, "polygon_ids")
     resolved_from, resolved_to = _resolve_date_range(date_from, date_to, period)
@@ -170,12 +159,7 @@ def multi_polygon_chart(
             value_expr.label("value"),
         )
         .join(Polygon, Polygon.polygon_id == Measurement.polygon_id)
-        .where(
-            and_(
-                Measurement.sensor_type_id == sensor_type_id,
-                Measurement.polygon_id.in_(polygon_id_list),
-            )
-        )
+        .where(and_(Measurement.sensor_type_id == sensor_type_id, Measurement.polygon_id.in_(polygon_id_list)))
     )
     if resolved_from is not None:
         stmt = stmt.where(Measurement.measured_at >= resolved_from)
@@ -183,13 +167,11 @@ def multi_polygon_chart(
         stmt = stmt.where(Measurement.measured_at <= resolved_to)
 
     if aggregation != "raw":
-        stmt = stmt.group_by(
-            Polygon.polygon_id,
-            Polygon.name,
-            bucket,
-        )
+        stmt = stmt.group_by(Polygon.polygon_id, Polygon.name, bucket)
 
-    rows = db.execute(stmt.order_by(bucket.asc())).mappings().all()
+    stmt = stmt.order_by(bucket.asc(), Polygon.polygon_id.asc())
+    rows = db.execute(stmt).mappings().all()
+
     polygons = {
         polygon.polygon_id: polygon
         for polygon in db.scalars(select(Polygon).where(Polygon.polygon_id.in_(polygon_id_list))).all()
@@ -200,6 +182,7 @@ def multi_polygon_chart(
             status_code=404,
             detail=f"Не найдены полигоны с id: {', '.join(str(v) for v in missing_polygon_ids)}",
         )
+
     series_map: dict[int, ChartSeries] = {
         polygon_id: ChartSeries(name=polygons[polygon_id].name, unit=sensor.unit.symbol, data=[])
         for polygon_id in polygons
@@ -208,10 +191,7 @@ def multi_polygon_chart(
     for row in rows:
         polygon_id = int(row["polygon_id"])
         bucket_value = row["bucket"]
-        if isinstance(bucket_value, datetime):
-            timestamp = bucket_value.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            timestamp = str(bucket_value)
+        timestamp = bucket_value.strftime("%Y-%m-%d %H:%M:%S") if isinstance(bucket_value, datetime) else str(bucket_value)
         series_map[polygon_id].data.append([timestamp, _to_float(row["value"])])
 
     return ChartResponse(series=list(series_map.values()))

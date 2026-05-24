@@ -3,6 +3,7 @@ import { MainLayoutComponent } from './layout/main-layout.component';
 import { ChartsPageComponent } from './pages/charts-page.component';
 import { DashboardPageComponent } from './pages/dashboard-page.component';
 import { MeasurementsPageComponent } from './pages/measurements-page.component';
+import { ReferencesPageComponent } from './pages/references-page.component';
 import { UploadPageComponent } from './pages/upload-page.component';
 
 export const routes: Routes = [
@@ -15,6 +16,7 @@ export const routes: Routes = [
       { path: 'upload', component: UploadPageComponent },
       { path: 'measurements', component: MeasurementsPageComponent },
       { path: 'charts', component: ChartsPageComponent },
+      { path: 'references', component: ReferencesPageComponent },
     ],
   },
 ];

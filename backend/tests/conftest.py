@@ -25,12 +25,12 @@ def engine():
 
 @pytest.fixture()
 def db_session(engine) -> Generator[Session, None, None]:
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=Session)
+    testing_session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=Session)
 
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
-    session = TestingSessionLocal()
+    session = testing_session_local()
     try:
         yield session
     finally:
@@ -45,9 +45,7 @@ def seeded_db(db_session: Session) -> Session:
     unit_co2 = MeasurementUnit(name="CO2", symbol="ppm", description="CO2 concentration")
     unit_light = MeasurementUnit(name="Light", symbol="lx", description="Light level")
     unit_noise = MeasurementUnit(name="Noise", symbol="dB", description="Noise level")
-    db_session.add_all(
-        [unit_temperature, unit_humidity, unit_pressure, unit_co2, unit_light, unit_noise]
-    )
+    db_session.add_all([unit_temperature, unit_humidity, unit_pressure, unit_co2, unit_light, unit_noise])
     db_session.flush()
 
     sensor_types = [
@@ -73,13 +71,9 @@ def seeded_db(db_session: Session) -> Session:
 @pytest.fixture()
 def client(db_session: Session) -> Generator[TestClient, None, None]:
     def _override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
+        yield db_session
 
     app.dependency_overrides[get_db] = _override_get_db
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
-

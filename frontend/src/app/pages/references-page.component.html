@@ -1,0 +1,81 @@
+<section class="page-head">
+  <h2>Справочники</h2>
+  <p>Read-only представление нормализованных справочников базы данных.</p>
+</section>
+
+<p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
+<p class="info-text" *ngIf="isLoading">Загрузка справочников...</p>
+
+<section class="panel table-panel">
+  <h3>Полигоны</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Название</th>
+          <th>Локация</th>
+          <th>Описание</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of polygons">
+          <td>{{ item.polygon_id }}</td>
+          <td>{{ item.name }}</td>
+          <td>{{ item.location || '—' }}</td>
+          <td>{{ item.description || '—' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel table-panel">
+  <h3>Типы датчиков</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Название</th>
+          <th>Код</th>
+          <th>Единица</th>
+          <th>Описание</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of sensorTypes">
+          <td>{{ item.sensor_type_id }}</td>
+          <td>{{ item.name }}</td>
+          <td>{{ item.code }}</td>
+          <td>{{ item.unit_symbol }}</td>
+          <td>{{ item.description || '—' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel table-panel">
+  <h3>Единицы измерения</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Название</th>
+          <th>Символ</th>
+          <th>Описание</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of units">
+          <td>{{ item.unit_id }}</td>
+          <td>{{ item.name }}</td>
+          <td>{{ item.symbol }}</td>
+          <td>{{ item.description || '—' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>

@@ -40,11 +40,7 @@ def seed_reference_data(db: Session) -> dict[str, int]:
             inserted_units += 1
 
     db.flush()
-
-    unit_by_symbol = {
-        unit.symbol: unit
-        for unit in db.scalars(select(MeasurementUnit)).all()
-    }
+    unit_by_symbol = {unit.symbol: unit for unit in db.scalars(select(MeasurementUnit)).all()}
 
     for code, name, symbol, description in sensor_map:
         exists = db.scalar(select(SensorType).where(SensorType.code == code))
@@ -66,10 +62,4 @@ def seed_reference_data(db: Session) -> dict[str, int]:
             inserted_polygons += 1
 
     db.commit()
-
-    return {
-        "units": inserted_units,
-        "sensor_types": inserted_sensors,
-        "polygons": inserted_polygons,
-    }
-
+    return {"units": inserted_units, "sensor_types": inserted_sensors, "polygons": inserted_polygons}
