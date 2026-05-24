@@ -1,0 +1,2 @@
+"""Eco Monitoring backend package."""
+
