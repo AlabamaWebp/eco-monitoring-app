@@ -20,7 +20,7 @@ cp .env.example .env
 docker compose up -d --build
 docker compose exec backend alembic upgrade head
 docker compose exec backend python -m app.seed_data
-docker run --rm -v <project_path>:/workspace -w /workspace python:3.12-slim python sample_data/generate_sample_csv.py
+docker run --rm -v <project_path>:/workspace -w //workspace python:3.12-slim python sample_data/generate_sample_csv.py
 ```
 
 Пример для PowerShell:
