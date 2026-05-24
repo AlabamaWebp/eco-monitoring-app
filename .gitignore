@@ -4,4 +4,4 @@
 *.pyo
 *.pyd
 *.swp
-
+.pytest_cache/

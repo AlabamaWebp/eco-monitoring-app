@@ -1,10 +1,11 @@
 from decimal import Decimal
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Numeric, func
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.models.types import BIGINT_SQL_TYPE
 
 
 class Measurement(Base):
@@ -16,12 +17,12 @@ class Measurement(Base):
         Index("idx_measurements_import_file", "import_file_id"),
     )
 
-    measurement_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    polygon_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("polygons.polygon_id"), nullable=False)
-    sensor_type_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("sensor_types.sensor_type_id"), nullable=False)
-    unit_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("measurement_units.unit_id"), nullable=False)
+    measurement_id: Mapped[int] = mapped_column(BIGINT_SQL_TYPE, primary_key=True, autoincrement=True)
+    polygon_id: Mapped[int] = mapped_column(BIGINT_SQL_TYPE, ForeignKey("polygons.polygon_id"), nullable=False)
+    sensor_type_id: Mapped[int] = mapped_column(BIGINT_SQL_TYPE, ForeignKey("sensor_types.sensor_type_id"), nullable=False)
+    unit_id: Mapped[int] = mapped_column(BIGINT_SQL_TYPE, ForeignKey("measurement_units.unit_id"), nullable=False)
     import_file_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("import_files.import_file_id"), nullable=True
+        BIGINT_SQL_TYPE, ForeignKey("import_files.import_file_id"), nullable=True
     )
     measured_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     value: Mapped[Decimal] = mapped_column(Numeric(16, 4), nullable=False)

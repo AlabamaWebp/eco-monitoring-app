@@ -1,11 +1,65 @@
 <section class="page-head">
   <h2>Загрузка CSV</h2>
-  <p>Страница-заглушка для будущей формы импорта: выбор полигона, фамилии и CSV-файла.</p>
+  <p>Загрузите CSV-файл измерений: полигон, фамилия загрузившего и файл с колонками датчиков.</p>
 </section>
 
-<section class="panel">
-  <div class="placeholder">
-    <p>Форма загрузки появится на следующем этапе.</p>
+<form class="panel form-grid" [formGroup]="form" (ngSubmit)="submit()">
+  <label class="field">
+    <span>Полигон</span>
+    <select formControlName="polygon_id">
+      <option [ngValue]="null">Выберите полигон</option>
+      <option *ngFor="let polygon of polygons" [ngValue]="polygon.polygon_id">
+        {{ polygon.name }}
+      </option>
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Фамилия загрузившего</span>
+    <input type="text" formControlName="collector_last_name" placeholder="Например: Иванов" />
+  </label>
+
+  <label class="field">
+    <span>Имя (опционально)</span>
+    <input type="text" formControlName="collector_first_name" />
+  </label>
+
+  <label class="field">
+    <span>Отчество (опционально)</span>
+    <input type="text" formControlName="collector_middle_name" />
+  </label>
+
+  <label class="field file-field">
+    <span>CSV-файл</span>
+    <input type="file" accept=".csv,text/csv" (change)="onFileSelected($event)" />
+    <small>Выбранный файл: {{ selectedFileName }}</small>
+  </label>
+
+  <div class="hint-box">
+    <strong>Пример колонок CSV:</strong>
+    <p>Дата, CO2, Влажность, Температура, Давление, Освещённость, Уровень шума</p>
+  </div>
+
+  <div class="actions">
+    <button type="submit" [disabled]="isSubmitting">
+      {{ isSubmitting ? 'Загрузка...' : 'Загрузить CSV' }}
+    </button>
+  </div>
+
+  <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
+</form>
+
+<section class="panel result-box" *ngIf="uploadResult">
+  <h3>Результат импорта</h3>
+  <div class="result-grid">
+    <p><span>Файл:</span> {{ uploadResult.file_name }}</p>
+    <p><span>Статус:</span> {{ uploadResult.status }}</p>
+    <p><span>Строк CSV:</span> {{ uploadResult.rows_count }}</p>
+    <p><span>Создано измерений:</span> {{ uploadResult.measurements_count }}</p>
+    <p><span>Пропущено значений:</span> {{ uploadResult.skipped_values }}</p>
+  </div>
+  <div class="actions">
+    <button type="button" (click)="goToMeasurements()">Открыть измерения</button>
   </div>
 </section>
 

@@ -1,15 +1,16 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, String, Text, func
+from sqlalchemy import DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.models.types import BIGINT_SQL_TYPE
 
 
 class Polygon(Base):
     __tablename__ = "polygons"
 
-    polygon_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    polygon_id: Mapped[int] = mapped_column(BIGINT_SQL_TYPE, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -1,19 +1,51 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { ApiService } from '../data/api.service';
+import { DashboardSummary } from '../data/api.models';
 
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './pages.shared.scss',
 })
 export class DashboardPageComponent {
-  cards = [
-    { label: 'Полигонов', value: '3' },
-    { label: 'Типов датчиков', value: '6' },
-    { label: 'Записей измерений', value: '0' },
-    { label: 'Последних импортов', value: '0' },
-  ];
+  summary: DashboardSummary | null = null;
+  errorMessage = '';
+
+  constructor(private readonly api: ApiService) {
+    this.loadSummary();
+  }
+
+  get cards(): { label: string; value: string }[] {
+    if (!this.summary) {
+      return [
+        { label: 'Полигонов', value: '—' },
+        { label: 'Типов датчиков', value: '—' },
+        { label: 'Измерений', value: '—' },
+        { label: 'CSV загрузок', value: '—' },
+      ];
+    }
+
+    return [
+      { label: 'Полигонов', value: String(this.summary.polygons_count) },
+      { label: 'Типов датчиков', value: String(this.summary.sensor_types_count) },
+      { label: 'Измерений', value: String(this.summary.measurements_count) },
+      { label: 'CSV загрузок', value: String(this.summary.imports_count) },
+    ];
+  }
+
+  private loadSummary(): void {
+    this.api.getDashboardSummary().subscribe({
+      next: (data) => {
+        this.summary = data;
+      },
+      error: () => {
+        this.errorMessage = 'Не удалось загрузить сводку dashboard.';
+      },
+    });
+  }
 }
 

@@ -1,6 +1,6 @@
 <section class="page-head">
   <h2>Dashboard</h2>
-  <p>Стартовая панель проекта. Здесь будут сводки и быстрый переход к рабочим сценариям.</p>
+  <p>Сводка по полигонам, загрузкам CSV и текущему объёму измерений.</p>
 </section>
 
 <section class="stats-grid">
@@ -8,5 +8,48 @@
     <p class="label">{{ card.label }}</p>
     <p class="value">{{ card.value }}</p>
   </article>
+</section>
+
+<p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+<section class="panel quick-actions">
+  <a routerLink="/upload" class="action-btn">Загрузить CSV</a>
+  <a routerLink="/measurements" class="action-btn">Смотреть измерения</a>
+  <a routerLink="/charts" class="action-btn">Построить график</a>
+</section>
+
+<section class="panel table-panel" *ngIf="summary">
+  <h3>Последние 5 импортов</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Файл</th>
+          <th>Полигон</th>
+          <th>Фамилия</th>
+          <th>Загружен</th>
+          <th>Статус</th>
+          <th>Строк</th>
+          <th>Измерений</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="summary.latest_imports.length === 0">
+          <td colspan="8" class="muted-cell">История импортов пока пуста.</td>
+        </tr>
+        <tr *ngFor="let item of summary.latest_imports">
+          <td>{{ item.import_file_id }}</td>
+          <td>{{ item.file_name }}</td>
+          <td>{{ item.polygon_name }}</td>
+          <td>{{ item.collector_last_name }}</td>
+          <td>{{ item.uploaded_at | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ item.status }}</td>
+          <td>{{ item.rows_count }}</td>
+          <td>{{ item.measurements_count }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </section>
 

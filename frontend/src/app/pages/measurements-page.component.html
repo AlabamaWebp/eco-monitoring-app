@@ -1,11 +1,110 @@
 <section class="page-head">
   <h2>Измерения</h2>
-  <p>Страница-заглушка для таблицы измерений с фильтрами и пагинацией.</p>
+  <p>Таблица измерений из главной таблицы <code>measurements</code> с фильтрами и пагинацией.</p>
 </section>
 
-<section class="panel">
-  <div class="placeholder">
-    <p>Здесь будет таблица `measurements` и фильтры по датчику, полигону и периоду.</p>
+<form class="panel filter-grid" [formGroup]="form" (ngSubmit)="applyFilters()">
+  <label class="field">
+    <span>Полигон</span>
+    <select formControlName="polygon_id">
+      <option value="">Все полигоны</option>
+      <option *ngFor="let polygon of polygons" [value]="polygon.polygon_id">
+        {{ polygon.name }}
+      </option>
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Датчик</span>
+    <select formControlName="sensor_type_id">
+      <option value="">Все датчики</option>
+      <option *ngFor="let sensor of sensorTypes" [value]="sensor.sensor_type_id">
+        {{ sensor.name }}
+      </option>
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Файл импорта</span>
+    <select formControlName="import_file_id">
+      <option value="">Все файлы</option>
+      <option *ngFor="let importItem of imports" [value]="importItem.import_file_id">
+        {{ importItem.file_name }}
+      </option>
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Дата с</span>
+    <input type="datetime-local" formControlName="date_from" />
+  </label>
+
+  <label class="field">
+    <span>Дата по</span>
+    <input type="datetime-local" formControlName="date_to" />
+  </label>
+
+  <label class="field">
+    <span>Сортировка</span>
+    <select formControlName="sort_order">
+      <option value="desc">Сначала новые</option>
+      <option value="asc">Сначала старые</option>
+    </select>
+  </label>
+
+  <div class="actions two-buttons">
+    <button type="submit">Применить</button>
+    <button type="button" class="secondary" (click)="resetFilters()">Сбросить</button>
+  </div>
+</form>
+
+<p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+<section class="panel table-panel">
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Дата и время</th>
+          <th>Полигон</th>
+          <th>Датчик</th>
+          <th>Значение</th>
+          <th>Ед.</th>
+          <th>Файл импорта</th>
+          <th>Фамилия</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="isLoading">
+          <td colspan="7" class="muted-cell">Загрузка данных...</td>
+        </tr>
+        <tr *ngIf="!isLoading && items.length === 0">
+          <td colspan="7" class="muted-cell">Нет данных по выбранным фильтрам.</td>
+        </tr>
+        <tr *ngFor="let item of items; trackBy: trackByMeasurement">
+          <td>{{ item.measured_at | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ item.polygon_name }}</td>
+          <td>{{ item.sensor_name }}</td>
+          <td>{{ item.value }}</td>
+          <td>{{ item.unit_symbol }}</td>
+          <td>{{ item.file_name || '—' }}</td>
+          <td>{{ item.collector_last_name || '—' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <button type="button" class="secondary" (click)="prevPage()" [disabled]="offset === 0">Назад</button>
+    <span>Страница {{ pageNumber }} / {{ totalPages }} (всего: {{ total }})</span>
+    <button
+      type="button"
+      class="secondary"
+      (click)="nextPage()"
+      [disabled]="offset + limit >= total"
+    >
+      Вперёд
+    </button>
   </div>
 </section>
 

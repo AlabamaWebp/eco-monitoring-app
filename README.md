@@ -1,26 +1,32 @@
 # Eco Monitoring App
 
-Стартовый каркас курсового проекта по БД для хранения и анализа экологических измерений.
+Веб-приложение для хранения и анализа экологических измерений.
+Главная таблица данных: `measurements`.
+Таблица `import_files` используется только для истории загрузок CSV.
 
-Текущий этап: подготовлена стабильная база проекта (backend + MySQL + миграции + seed + frontend-заглушки).
+## Текущий функционал
 
-## 1. Структура
+- Docker Compose: MySQL 8 + FastAPI backend
+- Backend API:
+  - загрузка CSV в `measurements`
+  - история импортов
+  - просмотр измерений с фильтрами и пагинацией
+  - графики: multi-sensor и multi-polygon
+  - чтение справочников
+  - dashboard summary
+- Frontend Angular:
+  - Dashboard
+  - реальная страница загрузки CSV
+  - таблица измерений с фильтрами
+  - графики на Apache ECharts
+- Генератор тестовых CSV-файлов
+- Backend тесты на `pytest`
+
+## Структура
 
 ```text
 eco-monitoring-app/
 ├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── database.py
-│   │   ├── core/
-│   │   ├── models/
-│   │   ├── routers/
-│   │   ├── schemas/
-│   │   └── services/
-│   ├── alembic/
-│   ├── alembic.ini
-│   ├── requirements.txt
-│   └── Dockerfile
 ├── frontend/
 ├── docs/
 ├── sample_data/
@@ -30,65 +36,47 @@ eco-monitoring-app/
 └── PROJECT_REQUIREMENTS.md
 ```
 
-## 2. Технологии
-
-- Backend: Python, FastAPI, SQLAlchemy, Alembic
-- Database: MySQL 8 (Docker Compose)
-- Frontend: Angular, TypeScript, SCSS
-- Charts (следующий этап): Apache ECharts
-
-## 3. Быстрый старт
-
-### 3.1 Подготовка `.env`
-
-Скопируйте файл:
+## Подготовка окружения
 
 ```bash
 cp .env.example .env
 ```
 
-Для Windows PowerShell:
+Для PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-### 3.2 Запуск MySQL и Backend в Docker
+## Запуск backend + MySQL
 
 ```bash
 docker compose up -d --build
+docker compose exec backend alembic upgrade head
+docker compose exec backend python -m app.seed_data
 ```
 
 Проверка:
 
-```bash
-docker compose ps
-docker compose logs -f backend
-```
-
-Backend:
 - API: [http://localhost:8000](http://localhost:8000)
 - Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
 - Health: [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
-### 3.3 Применение миграций
+## Генерация тестовых CSV
+
+Скрипт создаёт по ~1000 строк для каждого полигона:
+
+- `sample_data/polygon_1_measurements.csv`
+- `sample_data/polygon_2_measurements.csv`
+- `sample_data/polygon_3_measurements.csv`
+
+Запуск:
 
 ```bash
-docker compose exec backend alembic upgrade head
+python sample_data/generate_sample_csv.py
 ```
 
-### 3.4 Наполнение базовых справочников (seed)
-
-```bash
-docker compose exec backend python -m app.seed_data
-```
-
-Будут добавлены:
-- единицы измерения: `°C`, `%`, `hPa`, `ppm`, `lx`, `dB`
-- типы датчиков: `temperature`, `humidity`, `pressure`, `co2`, `light`, `noise`
-- тестовые полигоны: `Polygon #1`, `Polygon #2`, `Polygon #3`
-
-## 4. Локальный запуск frontend
+## Запуск frontend
 
 ```bash
 cd frontend
@@ -98,43 +86,93 @@ npm start
 
 Frontend: [http://localhost:4200](http://localhost:4200)
 
-Реализованы страницы-заглушки:
-- Dashboard
-- Загрузка CSV
-- Измерения
-- Графики
+## Основные API endpoints
 
-## 5. Что уже реализовано
+### Справочники
 
-### Backend
-- Базовая модульная структура (`models`, `schemas`, `routers`, `services`, `core`)
-- Подключение к MySQL через SQLAlchemy
-- CORS для `http://localhost:4200`
-- Endpoint `GET /api/health`
-- Модели:
-  - `polygons`
-  - `data_collectors`
-  - `measurement_units`
-  - `sensor_types`
-  - `import_files`
-  - `measurements`
+- `GET /api/polygons`
+- `GET /api/sensor-types`
+- `GET /api/measurement-units`
 
-### Alembic
-- Настроен `alembic/env.py`
-- Добавлена стартовая миграция со всеми таблицами, внешними ключами и индексами
-- Индексы `measurements`:
-  - `(polygon_id, sensor_type_id, measured_at)`
-  - `(sensor_type_id, measured_at, polygon_id)`
-  - `(measured_at)`
-  - `(import_file_id)`
+### Импорт CSV
 
-### Frontend
-- Angular проект с роутингом
-- Layout с навигацией
-- Светлая аккуратная тема
-- Основной цвет интерфейса синий/фиолетовый (не зелёный)
+- `POST /api/imports/csv`
+- `GET /api/imports`
 
-## 6. Полезные команды
+Поля формы `POST /api/imports/csv`:
+
+- `file` (CSV)
+- `polygon_id`
+- `collector_last_name` (обязательно)
+- `collector_first_name` (опционально)
+- `collector_middle_name` (опционально)
+
+Поддерживаемые колонки датчиков (RU/EN):
+
+- `CO2` / `co2`
+- `Влажность` / `humidity`
+- `Температура` / `temperature`
+- `Давление` / `pressure`
+- `Освещённость` / `light`
+- `Уровень шума` / `noise`
+
+Важно по валидации импорта:
+
+- обязательна колонка `Дата`
+- пустые значения пропускаются
+- некорректные числовые значения пропускаются
+- количество пропусков возвращается в `skipped_values`
+- статус импорта:
+  - `processed` при успехе
+  - `failed` при ошибке
+
+### Измерения
+
+- `GET /api/measurements`
+
+Фильтры:
+
+- `polygon_id`
+- `sensor_type_id`
+- `date_from`
+- `date_to`
+- `collector_id`
+- `import_file_id`
+- `limit`
+- `offset`
+- `sort_order=asc|desc` (по `measured_at`, по умолчанию `desc`)
+
+### Графики
+
+- `GET /api/charts/multi-sensor`
+- `GET /api/charts/multi-polygon`
+
+Дополнительно:
+
+- `period=last_24h|last_7d|last_month`
+- `aggregation=raw|hourly|daily`
+
+### Dashboard
+
+- `GET /api/dashboard/summary`
+
+## Тесты backend
+
+```bash
+docker compose exec backend pytest -q
+```
+
+Покрыто:
+
+- health endpoint
+- чтение справочников
+- импорт CSV
+- появление записей в `measurements`
+- обработка пропусков
+- `GET /api/measurements`
+- chart endpoints
+
+## Полезные команды
 
 Остановить контейнеры:
 
@@ -146,11 +184,5 @@ docker compose down
 
 ```bash
 docker compose down -v
-```
-
-Создать новую миграцию:
-
-```bash
-docker compose exec backend alembic revision --autogenerate -m "message"
 ```
 
