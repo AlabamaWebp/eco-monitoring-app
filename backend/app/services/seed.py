@@ -6,27 +6,42 @@ from app.models import MeasurementUnit, Polygon, SensorType
 
 def seed_reference_data(db: Session) -> dict[str, int]:
     unit_map = {
-        "°C": ("Degrees Celsius", "Temperature in Celsius"),
-        "%": ("Percent", "Relative humidity"),
-        "hPa": ("Hectopascal", "Atmospheric pressure"),
-        "ppm": ("Parts per million", "CO2 concentration"),
-        "lx": ("Lux", "Illuminance"),
-        "dB": ("Decibel", "Sound pressure level"),
+        "°C": ("Градус Цельсия", "Температура воздуха"),
+        "%": ("Процент", "Относительная влажность"),
+        "hPa": ("Гектопаскаль", "Атмосферное давление"),
+        "ppm": ("Частей на миллион", "Концентрация CO2"),
+        "lx": ("Люкс", "Освещённость"),
+        "dB": ("Децибел", "Уровень шума"),
     }
 
     sensor_map = [
-        ("temperature", "Temperature", "°C", "Air temperature"),
-        ("humidity", "Humidity", "%", "Relative humidity"),
-        ("pressure", "Pressure", "hPa", "Atmospheric pressure"),
-        ("co2", "CO2", "ppm", "Carbon dioxide concentration"),
-        ("light", "Light", "lx", "Ambient light"),
-        ("noise", "Noise", "dB", "Environmental noise"),
+        ("temperature", "Температура", "°C", "Температура воздуха"),
+        ("humidity", "Влажность", "%", "Относительная влажность"),
+        ("pressure", "Давление", "hPa", "Атмосферное давление"),
+        ("co2", "CO2", "ppm", "Концентрация углекислого газа"),
+        ("light", "Освещённость", "lx", "Уровень освещённости"),
+        ("noise", "Уровень шума", "dB", "Уровень акустического шума"),
     ]
 
     polygons = [
-        ("Polygon #1", "North zone", "Test polygon for calibration"),
-        ("Polygon #2", "Central zone", "Urban monitoring polygon"),
-        ("Polygon #3", "South zone", "Reserve area polygon"),
+        {
+            "name": "Полигон №1",
+            "location": "Северная зона",
+            "description": "Тестовый полигон для калибровки",
+            "aliases": {"Полигон №1", "Polygon #1"},
+        },
+        {
+            "name": "Полигон №2",
+            "location": "Центральная зона",
+            "description": "Городской полигон мониторинга",
+            "aliases": {"Полигон №2", "Polygon #2"},
+        },
+        {
+            "name": "Полигон №3",
+            "location": "Южная зона",
+            "description": "Полигон в природной зоне",
+            "aliases": {"Полигон №3", "Polygon #3"},
+        },
     ]
 
     inserted_units = 0
@@ -55,10 +70,16 @@ def seed_reference_data(db: Session) -> dict[str, int]:
             )
             inserted_sensors += 1
 
-    for name, location, description in polygons:
-        exists = db.scalar(select(Polygon).where(Polygon.name == name))
+    for item in polygons:
+        exists = db.scalar(select(Polygon).where(Polygon.name.in_(item["aliases"])))
         if exists is None:
-            db.add(Polygon(name=name, location=location, description=description))
+            db.add(
+                Polygon(
+                    name=item["name"],
+                    location=item["location"],
+                    description=item["description"],
+                )
+            )
             inserted_polygons += 1
 
     db.commit()
