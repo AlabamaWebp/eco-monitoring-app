@@ -136,6 +136,7 @@ export class MeasurementsPageComponent {
 
   startCreateMeasurement(): void {
     this.clearMessages();
+    const collectorLastName = (this.measurementForm?.getRawValue().collector_last_name ?? '').trim();
     this.editingMeasurementId = null;
     this.editingImportFileId = null;
     this.measurementForm.reset({
@@ -143,7 +144,7 @@ export class MeasurementsPageComponent {
       sensor_type_id: null,
       measured_at: '',
       value: null,
-      collector_last_name: '',
+      collector_last_name: collectorLastName,
     });
   }
 
@@ -181,14 +182,17 @@ export class MeasurementsPageComponent {
       collector_last_name: undefined as string | undefined,
     };
 
+    const normalizedLastName = (raw.collector_last_name ?? '').trim();
+    if (normalizedLastName) {
+      payload.collector_last_name = normalizedLastName;
+    }
+
     if (this.canEditCollectorLastName) {
-      const normalizedLastName = (raw.collector_last_name ?? '').trim();
       if (!normalizedLastName) {
         this.errorMessage = 'Фамилия загрузившего обязательна для импортированного измерения.';
         this.isSubmitting = false;
         return;
       }
-      payload.collector_last_name = normalizedLastName;
     }
 
     const request = this.editingMeasurementId
@@ -198,16 +202,26 @@ export class MeasurementsPageComponent {
     request.subscribe({
       next: () => {
         this.successMessage = this.editingMeasurementId ? 'Измерение обновлено.' : 'Измерение добавлено.';
-        this.editingMeasurementId = null;
-        this.editingImportFileId = null;
-        this.measurementForm.reset({
-          polygon_id: null,
-          sensor_type_id: null,
-          measured_at: '',
-          value: null,
-          collector_last_name: '',
-        });
         this.isSubmitting = false;
+        if (this.editingMeasurementId) {
+          this.editingMeasurementId = null;
+          this.editingImportFileId = null;
+          this.measurementForm.reset({
+            polygon_id: null,
+            sensor_type_id: null,
+            measured_at: '',
+            value: null,
+            collector_last_name: normalizedLastName,
+          });
+        } else {
+          this.measurementForm.reset({
+            polygon_id: null,
+            sensor_type_id: null,
+            measured_at: '',
+            value: null,
+            collector_last_name: normalizedLastName,
+          });
+        }
         this.loadMeasurements();
       },
       error: (error) => {

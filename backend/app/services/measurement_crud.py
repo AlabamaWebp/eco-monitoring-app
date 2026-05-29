@@ -8,9 +8,6 @@ from app.schemas.measurements import MeasurementWrite
 
 
 def create_measurement(db: Session, payload: MeasurementWrite) -> Measurement:
-    if payload.collector_last_name is not None:
-        raise HTTPException(status_code=400, detail="Фамилию загрузившего можно изменять только при редактировании.")
-
     polygon = db.get(Polygon, payload.polygon_id)
     if polygon is None:
         raise HTTPException(status_code=400, detail="Полигон не найден.")

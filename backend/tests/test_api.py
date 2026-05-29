@@ -350,6 +350,7 @@ def test_measurements_manual_create_update_delete_and_get(client, seeded_db):
             "sensor_type_id": sensor_temperature.sensor_type_id,
             "measured_at": "2025-01-05T12:00:00",
             "value": 23.4,
+            "collector_last_name": "Ivanov",
         },
     )
     assert create_response.status_code == 201
