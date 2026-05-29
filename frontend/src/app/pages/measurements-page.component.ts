@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../data/api.service';
 import { ImportItem, MeasurementItem, MeasurementListResponse, Polygon, SensorType } from '../data/api.models';
 
@@ -21,21 +21,33 @@ export class MeasurementsPageComponent {
   limit = 50;
   offset = 0;
   isLoading = false;
+  isSubmitting = false;
   errorMessage = '';
+  successMessage = '';
 
-  readonly form;
+  editingMeasurementId: number | null = null;
+
+  readonly filterForm;
+  readonly measurementForm;
 
   constructor(
     private readonly fb: FormBuilder,
     private readonly api: ApiService,
   ) {
-    this.form = this.fb.group({
+    this.filterForm = this.fb.group({
       polygon_id: [''],
       sensor_type_id: [''],
       import_file_id: [''],
       date_from: [''],
       date_to: [''],
       sort_order: ['desc'],
+    });
+
+    this.measurementForm = this.fb.group({
+      polygon_id: [null as number | null, [Validators.required]],
+      sensor_type_id: [null as number | null, [Validators.required]],
+      measured_at: ['', [Validators.required]],
+      value: [null as number | null, [Validators.required]],
     });
 
     this.bootstrap();
@@ -49,10 +61,14 @@ export class MeasurementsPageComponent {
     return this.total > 0 ? Math.ceil(this.total / this.limit) : 1;
   }
 
+  get isEditMode(): boolean {
+    return this.editingMeasurementId !== null;
+  }
+
   loadMeasurements(): void {
     this.isLoading = true;
     this.errorMessage = '';
-    const values = this.form.getRawValue();
+    const values = this.filterForm.getRawValue();
 
     this.api
       .getMeasurements({
@@ -84,7 +100,7 @@ export class MeasurementsPageComponent {
   }
 
   resetFilters(): void {
-    this.form.reset({
+    this.filterForm.reset({
       polygon_id: '',
       sensor_type_id: '',
       import_file_id: '',
@@ -112,6 +128,89 @@ export class MeasurementsPageComponent {
     this.loadMeasurements();
   }
 
+  startCreateMeasurement(): void {
+    this.clearMessages();
+    this.editingMeasurementId = null;
+    this.measurementForm.reset({
+      polygon_id: null,
+      sensor_type_id: null,
+      measured_at: '',
+      value: null,
+    });
+  }
+
+  startEditMeasurement(item: MeasurementItem): void {
+    this.clearMessages();
+    this.editingMeasurementId = item.measurement_id;
+    this.measurementForm.setValue({
+      polygon_id: item.polygon_id,
+      sensor_type_id: item.sensor_type_id,
+      measured_at: this.toDateTimeLocal(item.measured_at),
+      value: Number(item.value),
+    });
+  }
+
+  cancelMeasurementEdit(): void {
+    this.startCreateMeasurement();
+  }
+
+  saveMeasurement(): void {
+    if (this.measurementForm.invalid) {
+      this.measurementForm.markAllAsTouched();
+      return;
+    }
+
+    this.clearMessages();
+    this.isSubmitting = true;
+    const raw = this.measurementForm.getRawValue();
+    const payload = {
+      polygon_id: Number(raw.polygon_id),
+      sensor_type_id: Number(raw.sensor_type_id),
+      measured_at: raw.measured_at ?? '',
+      value: Number(raw.value),
+    };
+
+    const request = this.editingMeasurementId
+      ? this.api.updateMeasurement(this.editingMeasurementId, payload)
+      : this.api.createMeasurement(payload);
+
+    request.subscribe({
+      next: () => {
+        this.successMessage = this.editingMeasurementId ? 'Измерение обновлено.' : 'Измерение добавлено.';
+        this.editingMeasurementId = null;
+        this.measurementForm.reset({
+          polygon_id: null,
+          sensor_type_id: null,
+          measured_at: '',
+          value: null,
+        });
+        this.isSubmitting = false;
+        this.loadMeasurements();
+      },
+      error: (error) => {
+        this.errorMessage = error?.error?.detail ?? 'Не удалось сохранить измерение.';
+        this.isSubmitting = false;
+      },
+    });
+  }
+
+  deleteMeasurement(item: MeasurementItem): void {
+    if (!window.confirm('Вы действительно хотите удалить это измерение?')) {
+      return;
+    }
+
+    this.clearMessages();
+    this.api.deleteMeasurement(item.measurement_id).subscribe({
+      next: () => {
+        this.successMessage = 'Измерение удалено.';
+        this.reloadAfterDelete();
+      },
+      error: (error) => {
+        this.errorMessage = error?.error?.detail ?? 'Не удалось удалить измерение.';
+      },
+    });
+  }
+
   trackByMeasurement(_: number, item: MeasurementItem): number {
     return item.measurement_id;
   }
@@ -120,6 +219,52 @@ export class MeasurementsPageComponent {
     this.api.getPolygons().subscribe((data) => (this.polygons = data));
     this.api.getSensorTypes().subscribe((data) => (this.sensorTypes = data));
     this.api.getImports().subscribe((data) => (this.imports = data));
+    this.startCreateMeasurement();
     this.loadMeasurements();
+  }
+
+  private reloadAfterDelete(): void {
+    this.isLoading = true;
+    const values = this.filterForm.getRawValue();
+    this.api
+      .getMeasurements({
+        polygon_id: values.polygon_id || undefined,
+        sensor_type_id: values.sensor_type_id || undefined,
+        import_file_id: values.import_file_id || undefined,
+        date_from: values.date_from || undefined,
+        date_to: values.date_to || undefined,
+        sort_order: values.sort_order || 'desc',
+        limit: this.limit,
+        offset: this.offset,
+      })
+      .subscribe({
+        next: (response) => {
+          if (this.offset > 0 && response.items.length === 0) {
+            this.offset = Math.max(0, this.offset - this.limit);
+            this.loadMeasurements();
+            return;
+          }
+          this.items = response.items;
+          this.total = response.total;
+          this.isLoading = false;
+        },
+        error: (error) => {
+          this.errorMessage = error?.error?.detail ?? 'Ошибка загрузки измерений.';
+          this.isLoading = false;
+        },
+      });
+  }
+
+  private toDateTimeLocal(value: string): string {
+    if (!value) {
+      return '';
+    }
+    const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+    return normalized.slice(0, 16);
+  }
+
+  private clearMessages(): void {
+    this.errorMessage = '';
+    this.successMessage = '';
   }
 }

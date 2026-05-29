@@ -1,7 +1,20 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class MeasurementWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    polygon_id: int = Field(gt=0)
+    sensor_type_id: int = Field(gt=0)
+    measured_at: datetime
+    value: Decimal
+
+
+class MeasurementWriteResponse(BaseModel):
+    measurement_id: int
 
 
 class MeasurementListItem(BaseModel):
@@ -24,4 +37,3 @@ class MeasurementListResponse(BaseModel):
     total: int
     limit: int
     offset: int
-

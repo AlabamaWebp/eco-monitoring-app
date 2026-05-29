@@ -1,9 +1,9 @@
 <section class="page-head">
   <h2>Измерения</h2>
-  <p>Таблица данных из главной таблицы <code>measurements</code> с фильтрами и пагинацией.</p>
+  <p>Таблица данных из главной таблицы <code>measurements</code> с фильтрами, пагинацией и ручным CRUD.</p>
 </section>
 
-<form class="panel filter-grid" [formGroup]="form" (ngSubmit)="applyFilters()">
+<form class="panel filter-grid" [formGroup]="filterForm" (ngSubmit)="applyFilters()">
   <label class="field">
     <span>Полигон</span>
     <select formControlName="polygon_id">
@@ -54,7 +54,73 @@
   </div>
 </form>
 
+<section class="panel form-grid nested-form measurement-write-panel">
+  <div class="write-head">
+    <h3>{{ isEditMode ? 'Редактирование измерения' : 'Добавить измерение' }}</h3>
+    <button type="button" class="secondary" (click)="startCreateMeasurement()">Добавить измерение</button>
+  </div>
+
+  <form class="form-grid form-grid-inner" [formGroup]="measurementForm" (ngSubmit)="saveMeasurement()">
+    <label class="field">
+      <span>Полигон *</span>
+      <select formControlName="polygon_id">
+        <option [ngValue]="null">Выберите полигон</option>
+        <option *ngFor="let polygon of polygons" [ngValue]="polygon.polygon_id">{{ polygon.name }}</option>
+      </select>
+      <small
+        class="error-text"
+        *ngIf="measurementForm.controls.polygon_id.touched && measurementForm.controls.polygon_id.invalid"
+      >
+        Полигон обязателен.
+      </small>
+    </label>
+
+    <label class="field">
+      <span>Тип датчика *</span>
+      <select formControlName="sensor_type_id">
+        <option [ngValue]="null">Выберите датчик</option>
+        <option *ngFor="let sensor of sensorTypes" [ngValue]="sensor.sensor_type_id">
+          {{ sensor.name }} ({{ sensor.unit_symbol }})
+        </option>
+      </select>
+      <small
+        class="error-text"
+        *ngIf="measurementForm.controls.sensor_type_id.touched && measurementForm.controls.sensor_type_id.invalid"
+      >
+        Тип датчика обязателен.
+      </small>
+    </label>
+
+    <label class="field">
+      <span>Дата и время *</span>
+      <input type="datetime-local" formControlName="measured_at" />
+      <small
+        class="error-text"
+        *ngIf="measurementForm.controls.measured_at.touched && measurementForm.controls.measured_at.invalid"
+      >
+        Дата и время обязательны.
+      </small>
+    </label>
+
+    <label class="field">
+      <span>Значение *</span>
+      <input type="number" step="any" formControlName="value" />
+      <small class="error-text" *ngIf="measurementForm.controls.value.touched && measurementForm.controls.value.invalid">
+        Значение обязательно.
+      </small>
+    </label>
+
+    <div class="actions">
+      <button type="submit" [disabled]="isSubmitting">
+        {{ isEditMode ? 'Сохранить изменения' : 'Сохранить измерение' }}
+      </button>
+      <button type="button" class="secondary" *ngIf="isEditMode" (click)="cancelMeasurementEdit()">Отменить</button>
+    </div>
+  </form>
+</section>
+
 <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
+<p class="success-text" *ngIf="successMessage">{{ successMessage }}</p>
 
 <section class="panel table-panel">
   <div class="table-meta">
@@ -70,16 +136,17 @@
           <th>Датчик</th>
           <th>Значение</th>
           <th>Единица</th>
-          <th>Файл импорта</th>
+          <th>Источник</th>
           <th>Фамилия</th>
+          <th>Действия</th>
         </tr>
       </thead>
       <tbody>
         <tr *ngIf="isLoading">
-          <td colspan="7" class="muted-cell">Загрузка данных...</td>
+          <td colspan="8" class="muted-cell">Загрузка данных...</td>
         </tr>
         <tr *ngIf="!isLoading && items.length === 0">
-          <td colspan="7" class="muted-cell">Нет данных по выбранным фильтрам.</td>
+          <td colspan="8" class="muted-cell">Нет данных по выбранным фильтрам.</td>
         </tr>
         <tr *ngFor="let item of items; trackBy: trackByMeasurement">
           <td>{{ item.measured_at | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
@@ -87,8 +154,14 @@
           <td>{{ item.sensor_name }}</td>
           <td>{{ item.value }}</td>
           <td>{{ item.unit_symbol }}</td>
-          <td>{{ item.file_name || '—' }}</td>
+          <td>{{ item.file_name || 'Введено вручную' }}</td>
           <td>{{ item.collector_last_name || '—' }}</td>
+          <td>
+            <div class="row-actions">
+              <button type="button" class="secondary small-btn" (click)="startEditMeasurement(item)">Редактировать</button>
+              <button type="button" class="danger small-btn" (click)="deleteMeasurement(item)">Удалить</button>
+            </div>
+          </td>
         </tr>
       </tbody>
     </table>

@@ -1,12 +1,14 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
+from pydantic import ValidationError
 from sqlalchemy import Select, and_, desc, func, select
 from sqlalchemy.orm import Session, aliased
 
 from app.database import get_db
 from app.models import DataCollector, ImportFile, Measurement, MeasurementUnit, Polygon, SensorType
-from app.schemas.measurements import MeasurementListItem, MeasurementListResponse
+from app.schemas.measurements import MeasurementListItem, MeasurementListResponse, MeasurementWrite, MeasurementWriteResponse
+from app.services.measurement_crud import create_measurement, delete_measurement, update_measurement
 
 router = APIRouter(tags=["measurements"])
 
@@ -101,3 +103,36 @@ def list_measurements(
     ]
 
     return MeasurementListResponse(items=items, total=int(total), limit=limit, offset=offset)
+
+
+@router.post("/measurements", response_model=MeasurementWriteResponse, status_code=201)
+def add_measurement(payload: dict = Body(...), db: Session = Depends(get_db)) -> MeasurementWriteResponse:
+    parsed = _parse_payload(payload)
+    measurement = create_measurement(db, parsed)
+    return MeasurementWriteResponse(measurement_id=measurement.measurement_id)
+
+
+@router.put("/measurements/{measurement_id}", response_model=MeasurementWriteResponse)
+def edit_measurement(
+    measurement_id: int,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+) -> MeasurementWriteResponse:
+    parsed = _parse_payload(payload)
+    measurement = update_measurement(db, measurement_id, parsed)
+    return MeasurementWriteResponse(measurement_id=measurement.measurement_id)
+
+
+@router.delete("/measurements/{measurement_id}", status_code=204, response_class=Response)
+def remove_measurement(measurement_id: int, db: Session = Depends(get_db)) -> Response:
+    delete_measurement(db, measurement_id)
+    return Response(status_code=204)
+
+
+def _parse_payload(payload: dict) -> MeasurementWrite:
+    try:
+        return MeasurementWrite.model_validate(payload)
+    except ValidationError as exc:
+        errors = exc.errors()
+        detail = errors[0]["msg"] if errors else "Некорректные данные формы."
+        raise HTTPException(status_code=400, detail=detail) from exc

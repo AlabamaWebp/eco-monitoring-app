@@ -21,6 +21,25 @@ export interface MeasurementUnit {
   description?: string | null;
 }
 
+export interface PolygonWritePayload {
+  name: string;
+  location?: string | null;
+  description?: string | null;
+}
+
+export interface SensorTypeWritePayload {
+  unit_id: number;
+  name: string;
+  code: string;
+  description?: string | null;
+}
+
+export interface MeasurementUnitWritePayload {
+  name: string;
+  symbol: string;
+  description?: string | null;
+}
+
 export interface CsvImportResponse {
   import_file_id: number;
   file_name: string;
@@ -62,6 +81,17 @@ export interface MeasurementListResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+export interface MeasurementWritePayload {
+  polygon_id: number;
+  sensor_type_id: number;
+  measured_at: string;
+  value: number;
+}
+
+export interface MeasurementWriteResponse {
+  measurement_id: number;
 }
 
 export interface ChartSeries {
