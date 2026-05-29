@@ -1,6 +1,6 @@
 from sqlalchemy import func, select
 
-from app.models import ImportFile, Measurement, MeasurementUnit, Polygon, SensorType
+from app.models import DataCollector, ImportFile, Measurement, MeasurementUnit, Polygon, SensorType
 
 
 def _import_csv(client, payload: bytes, polygon_id: int = 1, last_name: str = "Ivanov"):
@@ -386,6 +386,18 @@ def test_measurements_manual_create_update_delete_and_get(client, seeded_db):
     assert listed["file_name"] is None
     assert listed["collector_last_name"] is None
 
+    forbidden_collector_update = client.put(
+        f"/api/measurements/{measurement_id}",
+        json={
+            "polygon_id": updated_measurement.polygon_id,
+            "sensor_type_id": updated_measurement.sensor_type_id,
+            "measured_at": "2025-01-05T13:00:00",
+            "value": 55.1,
+            "collector_last_name": "Sidorov",
+        },
+    )
+    assert forbidden_collector_update.status_code == 400
+
     delete_response = client.delete(f"/api/measurements/{measurement_id}")
     assert delete_response.status_code == 204
     assert seeded_db.get(Measurement, measurement_id) is None
@@ -416,6 +428,7 @@ def test_measurements_update_imported_keeps_import_file_id(client, seeded_db):
             "sensor_type_id": sensor_humidity.sensor_type_id,
             "measured_at": "2025-01-01T02:00:00",
             "value": 66.0,
+            "collector_last_name": "Sidorov",
         },
     )
     assert update_response.status_code == 200
@@ -423,3 +436,8 @@ def test_measurements_update_imported_keeps_import_file_id(client, seeded_db):
     updated = seeded_db.get(Measurement, measurement.measurement_id)
     assert updated is not None
     assert updated.import_file_id == original_import_file_id
+    import_file = seeded_db.get(ImportFile, updated.import_file_id)
+    assert import_file is not None
+    collector = seeded_db.get(DataCollector, import_file.collector_id)
+    assert collector is not None
+    assert collector.last_name == "Sidorov"

@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class MeasurementWrite(BaseModel):
@@ -11,6 +11,17 @@ class MeasurementWrite(BaseModel):
     sensor_type_id: int = Field(gt=0)
     measured_at: datetime
     value: Decimal
+    collector_last_name: str | None = None
+
+    @field_validator("collector_last_name")
+    @classmethod
+    def normalize_collector_last_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Фамилия не может быть пустой.")
+        return normalized
 
 
 class MeasurementWriteResponse(BaseModel):

@@ -110,6 +110,11 @@
       </small>
     </label>
 
+    <label class="field" *ngIf="canEditCollectorLastName">
+      <span>Фамилия загрузившего *</span>
+      <input type="text" formControlName="collector_last_name" />
+    </label>
+
     <div class="actions">
       <button type="submit" [disabled]="isSubmitting">
         {{ isEditMode ? 'Сохранить изменения' : 'Сохранить измерение' }}

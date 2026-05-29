@@ -88,6 +88,7 @@ export interface MeasurementWritePayload {
   sensor_type_id: number;
   measured_at: string;
   value: number;
+  collector_last_name?: string;
 }
 
 export interface MeasurementWriteResponse {

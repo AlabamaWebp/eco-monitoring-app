@@ -1,12 +1,16 @@
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from fastapi import HTTPException
 
-from app.models import Measurement, Polygon, SensorType
+from app.models import DataCollector, ImportFile, Measurement, Polygon, SensorType
 from app.schemas.measurements import MeasurementWrite
 
 
 def create_measurement(db: Session, payload: MeasurementWrite) -> Measurement:
+    if payload.collector_last_name is not None:
+        raise HTTPException(status_code=400, detail="Фамилию загрузившего можно изменять только при редактировании.")
+
     polygon = db.get(Polygon, payload.polygon_id)
     if polygon is None:
         raise HTTPException(status_code=400, detail="Полигон не найден.")
@@ -47,6 +51,25 @@ def update_measurement(db: Session, measurement_id: int, payload: MeasurementWri
     measurement.unit_id = sensor_type.unit_id
     measurement.measured_at = payload.measured_at
     measurement.value = payload.value
+
+    if payload.collector_last_name is not None:
+        if measurement.import_file_id is None:
+            raise HTTPException(status_code=400, detail="Невозможно изменить фамилию для ручного измерения.")
+
+        import_file = db.get(ImportFile, measurement.import_file_id)
+        if import_file is None:
+            raise HTTPException(status_code=400, detail="Источник импорта для измерения не найден.")
+
+        collector = db.scalar(
+            select(DataCollector).where(func.lower(DataCollector.last_name) == payload.collector_last_name.lower())
+        )
+        if collector is None:
+            collector = DataCollector(last_name=payload.collector_last_name)
+            db.add(collector)
+            db.flush()
+
+        import_file.collector_id = collector.collector_id
+
     db.commit()
     db.refresh(measurement)
     return measurement

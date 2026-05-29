@@ -26,6 +26,7 @@ export class MeasurementsPageComponent {
   successMessage = '';
 
   editingMeasurementId: number | null = null;
+  editingImportFileId: number | null = null;
 
   readonly filterForm;
   readonly measurementForm;
@@ -48,6 +49,7 @@ export class MeasurementsPageComponent {
       sensor_type_id: [null as number | null, [Validators.required]],
       measured_at: ['', [Validators.required]],
       value: [null as number | null, [Validators.required]],
+      collector_last_name: [''],
     });
 
     this.bootstrap();
@@ -63,6 +65,10 @@ export class MeasurementsPageComponent {
 
   get isEditMode(): boolean {
     return this.editingMeasurementId !== null;
+  }
+
+  get canEditCollectorLastName(): boolean {
+    return this.isEditMode && this.editingImportFileId !== null;
   }
 
   loadMeasurements(): void {
@@ -131,22 +137,26 @@ export class MeasurementsPageComponent {
   startCreateMeasurement(): void {
     this.clearMessages();
     this.editingMeasurementId = null;
+    this.editingImportFileId = null;
     this.measurementForm.reset({
       polygon_id: null,
       sensor_type_id: null,
       measured_at: '',
       value: null,
+      collector_last_name: '',
     });
   }
 
   startEditMeasurement(item: MeasurementItem): void {
     this.clearMessages();
     this.editingMeasurementId = item.measurement_id;
+    this.editingImportFileId = item.import_file_id ?? null;
     this.measurementForm.setValue({
       polygon_id: item.polygon_id,
       sensor_type_id: item.sensor_type_id,
       measured_at: this.toDateTimeLocal(item.measured_at),
       value: Number(item.value),
+      collector_last_name: item.collector_last_name ?? '',
     });
   }
 
@@ -168,7 +178,18 @@ export class MeasurementsPageComponent {
       sensor_type_id: Number(raw.sensor_type_id),
       measured_at: raw.measured_at ?? '',
       value: Number(raw.value),
+      collector_last_name: undefined as string | undefined,
     };
+
+    if (this.canEditCollectorLastName) {
+      const normalizedLastName = (raw.collector_last_name ?? '').trim();
+      if (!normalizedLastName) {
+        this.errorMessage = 'Фамилия загрузившего обязательна для импортированного измерения.';
+        this.isSubmitting = false;
+        return;
+      }
+      payload.collector_last_name = normalizedLastName;
+    }
 
     const request = this.editingMeasurementId
       ? this.api.updateMeasurement(this.editingMeasurementId, payload)
@@ -178,11 +199,13 @@ export class MeasurementsPageComponent {
       next: () => {
         this.successMessage = this.editingMeasurementId ? 'Измерение обновлено.' : 'Измерение добавлено.';
         this.editingMeasurementId = null;
+        this.editingImportFileId = null;
         this.measurementForm.reset({
           polygon_id: null,
           sensor_type_id: null,
           measured_at: '',
           value: null,
+          collector_last_name: '',
         });
         this.isSubmitting = false;
         this.loadMeasurements();
